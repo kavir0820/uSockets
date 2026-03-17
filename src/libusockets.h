@@ -251,6 +251,8 @@ void us_loop_integrate(struct us_loop_t *loop);
 #ifdef LIBUS_RECV_TIMESTAMPS
 /* Get kernel recv timestamp (ns) from last recvmsg SCM_TIMESTAMPNS */
 unsigned long long us_loop_last_recv_ts_ns(struct us_loop_t *loop);
+unsigned long long us_loop_pre_recv_ts_ns(struct us_loop_t *loop);
+unsigned long long us_loop_post_recv_ts_ns(struct us_loop_t *loop);
 #endif
 
 /* Returns the loop iteration number */
@@ -312,6 +314,9 @@ void *us_socket_ext(int ssl, struct us_socket_t *s);
 struct us_socket_context_t *us_socket_context(int ssl, struct us_socket_t *s);
 
 /* Withdraw any msg_more status and flush any pending data */
+/* Mark SSL socket as kTLS RX-enabled (bypass SSL_read, recv returns plaintext) */
+void us_socket_mark_ktls_rx(int ssl, struct us_socket_t *s);
+
 void us_socket_flush(int ssl, struct us_socket_t *s);
 
 /* Shuts down the connection by sending FIN and/or close_notify */

@@ -36,6 +36,8 @@ struct us_internal_loop_data_t {
 #ifdef LIBUS_RECV_TIMESTAMPS
     /* Kernel recv timestamp (ns, CLOCK_REALTIME) from recvmsg SCM_TIMESTAMPNS */
     unsigned long long last_recv_kernel_ts_ns;
+    unsigned long long pre_recv_ts_ns;
+    unsigned long long post_recv_ts_ns;
 #endif
 };
 

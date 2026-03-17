@@ -228,4 +228,13 @@ void us_socket_shutdown(int ssl, struct us_socket_t *s) {
     }
 }
 
+
+void us_socket_mark_ktls_rx(int ssl, struct us_socket_t *s) {
+#ifndef LIBUS_NO_SSL
+    if (ssl) {
+        us_internal_ssl_socket_mark_ktls_rx((struct us_internal_ssl_socket_t *) s);
+    }
+#endif
+}
+
 #endif

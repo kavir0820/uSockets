@@ -34,6 +34,8 @@
 #include <netdb.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/sockios.h>
 #include <fcntl.h>
 #include <errno.h>
 #endif
@@ -790,6 +792,15 @@ int bsd_recv_ts(LIBUS_SOCKET_DESCRIPTOR fd, void *buf, int length, int flags, un
                               + (unsigned long long)ts->tv_nsec;
                 break;
             }
+        }
+    }
+    /* Fallback: kTLS recv does not forward SCM_TIMESTAMPNS in cmsg.
+     * Use ioctl(SIOCGSTAMPNS) to get the last packet timestamp instead. */
+    if (n > 0 && kernel_ts_ns && *kernel_ts_ns == 0) {
+        struct timespec ts;
+        if (ioctl(fd, SIOCGSTAMPNS, &ts) == 0) {
+            *kernel_ts_ns = (unsigned long long)ts.tv_sec * 1000000000ULL
+                          + (unsigned long long)ts.tv_nsec;
         }
     }
     return n;

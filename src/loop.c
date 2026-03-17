@@ -354,11 +354,23 @@ void us_internal_dispatch_ready_poll(struct us_poll_t *p, int error, int events)
                 int length;
                 read_more:
                 #ifdef LIBUS_RECV_TIMESTAMPS
+                {
+                    struct timespec _pre;
+                    clock_gettime(CLOCK_REALTIME, &_pre);
+                    s->context->loop->data.pre_recv_ts_ns = (unsigned long long)_pre.tv_sec * 1000000000ULL + (unsigned long long)_pre.tv_nsec;
+                }
                 length = bsd_recv_ts(us_poll_fd(&s->p), s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, LIBUS_RECV_BUFFER_LENGTH, 0, &s->context->loop->data.last_recv_kernel_ts_ns);
 #else
                 length = bsd_recv(us_poll_fd(&s->p), s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, LIBUS_RECV_BUFFER_LENGTH, 0);
 #endif
                 if (length > 0) {
+#ifdef LIBUS_RECV_TIMESTAMPS
+                    {
+                        struct timespec _post;
+                        clock_gettime(CLOCK_REALTIME, &_post);
+                        s->context->loop->data.post_recv_ts_ns = (unsigned long long)_post.tv_sec * 1000000000ULL + (unsigned long long)_post.tv_nsec;
+                    }
+#endif
                     s = s->context->on_data(s, s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, length);
 
                     /* If we filled the entire recv buffer, we need to immediately read again since otherwise a
@@ -403,3 +415,12 @@ unsigned long long us_loop_last_recv_ts_ns(struct us_loop_t *loop) {
     return loop->data.last_recv_kernel_ts_ns;
 }
 #endif
+#ifdef LIBUS_RECV_TIMESTAMPS
+unsigned long long us_loop_pre_recv_ts_ns(struct us_loop_t *loop) {
+    return loop->data.pre_recv_ts_ns;
+}
+unsigned long long us_loop_post_recv_ts_ns(struct us_loop_t *loop) {
+    return loop->data.post_recv_ts_ns;
+}
+#endif
+

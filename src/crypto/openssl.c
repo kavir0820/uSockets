@@ -85,6 +85,7 @@ struct us_internal_ssl_socket_t {
     SSL *ssl;
     int ssl_write_wants_read; // we use this for now
     int ssl_read_wants_write;
+    int ktls_rx;  /* 1 = kernel TLS handles RX decryption */
 };
 
 int passphrase_cb(char *buf, int size, int rwflag, void *u) {
@@ -157,6 +158,7 @@ struct us_internal_ssl_socket_t *ssl_on_open(struct us_internal_ssl_socket_t *s,
     s->ssl = SSL_new(context->ssl_context);
     s->ssl_write_wants_read = 0;
     s->ssl_read_wants_write = 0;
+    s->ktls_rx = 0;
     SSL_set_bio(s->ssl, loop_ssl_data->shared_rbio, loop_ssl_data->shared_wbio);
 
     BIO_up_ref(loop_ssl_data->shared_rbio);
@@ -202,6 +204,23 @@ struct us_internal_ssl_socket_t *ssl_on_data(struct us_internal_ssl_socket_t *s,
     struct loop_ssl_data *loop_ssl_data = (struct loop_ssl_data *) loop->data.ssl_data;
 
     // note: if we put data here we should never really clear it (not in write either, it still should be available for SSL_write to read from!)
+    /* kTLS fast path: kernel already decrypted, pass plaintext directly */
+    if (s->ktls_rx) {
+        struct us_internal_ssl_socket_context_t *context = (struct us_internal_ssl_socket_context_t *) us_socket_context(0, &s->s);
+#ifdef LIBUS_RECV_TIMESTAMPS
+        /* SO_TIMESTAMPNS cmsg is not forwarded by kTLS recv path.
+         * Use clock_gettime as approximate recv timestamp instead. */
+        {
+            struct us_loop_t *loop = us_socket_context_loop(0, &context->sc);
+            struct timespec now;
+            clock_gettime(CLOCK_REALTIME, &now);
+            loop->data.last_recv_kernel_ts_ns = (unsigned long long)now.tv_sec * 1000000000ULL
+                                               + (unsigned long long)now.tv_nsec;
+        }
+#endif
+        return context->on_data(s, data, length);
+    }
+
     loop_ssl_data->ssl_read_input = data;
     loop_ssl_data->ssl_read_input_length = length;
     loop_ssl_data->ssl_read_input_offset = 0;
@@ -336,6 +355,7 @@ struct us_internal_ssl_socket_t *ssl_on_writable(struct us_internal_ssl_socket_t
 
     if (s->ssl_read_wants_write) {
         s->ssl_read_wants_write = 0;
+    s->ktls_rx = 0;
 
         // make sure to update context before we call (context can change if the user adopts the socket!)
         context = (struct us_internal_ssl_socket_context_t *) us_socket_context(0, &s->s);
@@ -856,3 +876,8 @@ struct us_internal_ssl_socket_t *us_internal_ssl_socket_context_adopt_socket(str
 }
 
 #endif
+
+/* Mark socket as kTLS-enabled for RX (caller must have already done setsockopt) */
+void us_internal_ssl_socket_mark_ktls_rx(struct us_internal_ssl_socket_t *s) {
+    s->ktls_rx = 1;
+}
