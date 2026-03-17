@@ -353,7 +353,11 @@ void us_internal_dispatch_ready_poll(struct us_poll_t *p, int error, int events)
 
                 int length;
                 read_more:
-                #ifdef LIBUS_RECV_TIMESTAMPS                length = bsd_recv_ts(us_poll_fd(&s->p), s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, LIBUS_RECV_BUFFER_LENGTH, 0, &s->context->loop->data.last_recv_kernel_ts_ns);#else                length = bsd_recv(us_poll_fd(&s->p), s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, LIBUS_RECV_BUFFER_LENGTH, 0);#endif
+                #ifdef LIBUS_RECV_TIMESTAMPS
+                length = bsd_recv_ts(us_poll_fd(&s->p), s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, LIBUS_RECV_BUFFER_LENGTH, 0, &s->context->loop->data.last_recv_kernel_ts_ns);
+#else
+                length = bsd_recv(us_poll_fd(&s->p), s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, LIBUS_RECV_BUFFER_LENGTH, 0);
+#endif
                 if (length > 0) {
                     s = s->context->on_data(s, s->context->loop->data.recv_buf + LIBUS_RECV_BUFFER_PADDING, length);
 
