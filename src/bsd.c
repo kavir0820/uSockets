@@ -765,3 +765,33 @@ LIBUS_SOCKET_DESCRIPTOR bsd_create_connect_socket_unix(const char *server_path, 
 
     return fd;
 }
+
+#ifdef LIBUS_RECV_TIMESTAMPS
+#include <sys/socket.h>
+#include <time.h>
+int bsd_recv_ts(LIBUS_SOCKET_DESCRIPTOR fd, void *buf, int length, int flags, unsigned long long *kernel_ts_ns) {
+    char ctrl[CMSG_SPACE(sizeof(struct timespec))];
+    struct iovec iov = { .iov_base = buf, .iov_len = (size_t)length };
+    struct msghdr msg = {
+        .msg_iov = &iov,
+        .msg_iovlen = 1,
+        .msg_control = ctrl,
+        .msg_controllen = sizeof(ctrl),
+    };
+
+    int n = recvmsg(fd, &msg, flags);
+    if (n > 0 && kernel_ts_ns) {
+        *kernel_ts_ns = 0;
+        struct cmsghdr *cmsg;
+        for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+            if (cmsg->cmsg_level == SOL_SOCKET && cmsg->cmsg_type == SCM_TIMESTAMPNS) {
+                struct timespec *ts = (struct timespec *)CMSG_DATA(cmsg);
+                *kernel_ts_ns = (unsigned long long)ts->tv_sec * 1000000000ULL
+                              + (unsigned long long)ts->tv_nsec;
+                break;
+            }
+        }
+    }
+    return n;
+}
+#endif

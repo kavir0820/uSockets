@@ -33,6 +33,7 @@ struct us_internal_loop_data_t {
     int low_prio_budget;
     /* We do not care if this flips or not, it doesn't matter */
     long long iteration_nr;
+#ifdef LIBUS_RECV_TIMESTAMPS    /* Kernel recv timestamp (ns, CLOCK_REALTIME) from recvmsg SCM_TIMESTAMPNS */    unsigned long long last_recv_kernel_ts_ns;#endif
 };
 
 #endif // LOOP_DATA_H

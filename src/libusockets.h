@@ -247,6 +247,7 @@ void us_wakeup_loop(struct us_loop_t *loop);
 
 /* Hook up timers in existing loop */
 void us_loop_integrate(struct us_loop_t *loop);
+#ifdef LIBUS_RECV_TIMESTAMPS/* Get kernel recv timestamp (ns) from last recvmsg SCM_TIMESTAMPNS */unsigned long long us_loop_last_recv_ts_ns(struct us_loop_t *loop);#endif
 
 /* Returns the loop iteration number */
 long long us_loop_iteration_number(struct us_loop_t *loop);
